@@ -51,7 +51,7 @@ Talos/
 1. Clone the repository:
 
 ```bash
-https://github.com/yourusername/Talos.git
+https://github.com/aryansoni123/Talos_RAG.git
 ```
 
 2. Install dependencies:
