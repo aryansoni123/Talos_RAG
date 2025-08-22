@@ -210,9 +210,9 @@ def rerank_results(query, retrieved_docs):
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
-pdf_docs = load_pdf("C:/Users/sonia/C/Project H/Data/APJCP-24-531.pdf")
-csv_docs = load_csv("C:/Users/sonia/C/Project H/Data/data.csv")
-audio_docs, audio_text_embeddings, audio_embedding = load_audio("C:/Users/sonia/C/Project H/Data/audio.wav", embeddings)
+pdf_docs = load_pdf() #Function to load pdf
+csv_docs = load_csv() #Function to load csv
+audio_docs, audio_text_embeddings, audio_embedding = load_audio(embeddings) #Function to load AUDIO
 
 # Store text data in FAISS
 db = FAISS.from_documents(pdf_docs + csv_docs, embeddings)
