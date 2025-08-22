@@ -55,7 +55,7 @@ class FileChangeHandler(FileSystemEventHandler):
         elif file_ext in [".wav", ".mp3"]:
             update_audio_embeddings(file_path)
 
-def start_file_watcher(directory="C:/Users/sonia/C/Project H/Data"):
+def start_file_watcher(directory=filepath):
     observer = Observer()
     event_handler = FileChangeHandler()
     observer.schedule(event_handler, directory, recursive=True)
