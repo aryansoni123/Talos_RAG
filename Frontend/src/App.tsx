@@ -3,7 +3,7 @@ import {
   Send, Paperclip, Mic, Settings, Search, Plus, Moon, Sun, 
   Database, MessageSquare, ChevronRight, User, Bot, Trash2,
   FileText, Headphones, BarChart, ChevronLeft, Loader2, Upload,
-  Copy, Check
+  Copy, Check, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Lenis from 'lenis';
@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { chatService, ChatResponse, Source } from './services/api';
+import { chatService, ChatResponse, Source, SystemStatus, InventoryItem } from './services/api';
 
 interface Message {
   id: string;
@@ -94,6 +94,62 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
+
+  const [isKBOpen, setIsKBOpen] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [kbStatus, setKBStatus] = useState<SystemStatus | null>(null);
+  const [isKBLoading, setIsKBLoading] = useState(false);
+  const [kbSearch, setKBSearch] = useState('');
+
+  const fetchKBStatus = async () => {
+    console.log("Fetching Knowledge Base status...");
+    setIsKBLoading(true);
+    try {
+      const status = await chatService.getStatus();
+      console.log("KB Status Received:", status);
+      if (status && status.inventory) {
+        setKBStatus(status);
+      } else {
+        console.warn("KB Status received but inventory is missing or empty.");
+      }
+    } catch (error) {
+      console.error('CRITICAL: Failed to fetch KB status:', error);
+      alert("Backend Connection Error: Could not retrieve Knowledge Base. Ensure api.py is running on port 8000.");
+    } finally {
+      setIsKBLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isKBOpen) {
+      fetchKBStatus();
+    } else {
+      setSelectedFolder(null);
+    }
+  }, [isKBOpen]);
+
+  const handleDeleteFile = async (filePath: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this file and its vectors?")) return;
+    
+    try {
+      await chatService.deleteFile(filePath);
+      fetchKBStatus(); // Refresh the list
+    } catch (error) {
+      alert("Failed to delete file.");
+    }
+  };
+
+  const folders = [
+    { id: 'pdf', name: 'PDF Documents', icon: FileText, color: '#ef4444' },
+    { id: 'csv', name: 'Structured Data', icon: BarChart, color: '#10b981' },
+    { id: 'audio', name: 'Audio Recordings', icon: Headphones, color: '#8b5cf6' },
+    { id: 'txt', name: 'Plain Text', icon: MessageSquare, color: '#f59e0b' },
+  ];
+
+  const getFileCount = (type: string) => {
+    if (!kbStatus) return 0;
+    return kbStatus.inventory.filter(f => f.type === type).length;
+  };
 
   useLayoutEffect(() => {
     if (scrollRef.current) {
@@ -269,19 +325,6 @@ export default function App() {
               New Conversation
             </button>
 
-            <button className="bulk-upload-btn" onClick={() => bulkFileInputRef.current?.click()}>
-              <Upload size={18} />
-              Bulk Upload
-            </button>
-            <input 
-              type="file" 
-              ref={bulkFileInputRef} 
-              style={{ display: 'none' }} 
-              multiple 
-              accept=".pdf,.csv,.wav,.mp3"
-              onChange={handleBulkUpload}
-            />
-
             <div style={{ flex: 1, overflowY: 'auto' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px', padding: '10px 24px' }}>
                 Recent Activity
@@ -295,7 +338,11 @@ export default function App() {
             </div>
 
             <div style={{ padding: '16px 12px', borderTop: '1px solid var(--border-glass)' }}>
-              <button className="sidebar-action" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', borderRadius: '10px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <button 
+                className="sidebar-action" 
+                onClick={() => setIsKBOpen(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', borderRadius: '10px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
                 <Database size={18} />
                 <span style={{ fontSize: '14px' }}>Knowledge Base</span>
               </button>
@@ -305,6 +352,185 @@ export default function App() {
               </button>
             </div>
           </motion.aside>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isKBOpen && (
+          <div className="kb-overlay" onClick={() => setIsKBOpen(false)}>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="kb-panel" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="kb-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div className="logo-box">K</div>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Knowledge Base</h2>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Active Intelligence Inventory</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button 
+                    className="icon-btn" 
+                    onClick={fetchKBStatus} 
+                    disabled={isKBLoading}
+                    title="Sync with Backend"
+                  >
+                    <motion.div animate={isKBLoading ? { rotate: 360 } : {}} transition={isKBLoading ? { repeat: Infinity, duration: 1, ease: "linear" } : {}}>
+                      <Database size={20} />
+                    </motion.div>
+                  </button>
+                  <button className="kb-bulk-upload-btn" onClick={() => bulkFileInputRef.current?.click()}>
+                    <Upload size={16} />
+                    <span>Bulk Upload</span>
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={bulkFileInputRef} 
+                    style={{ display: 'none' }} 
+                    multiple 
+                    accept=".pdf,.csv,.wav,.mp3"
+                    onChange={handleBulkUpload}
+                  />
+                  <button className="icon-btn" onClick={() => setIsKBOpen(false)}>
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="kb-stats-bar">
+                <div className="stat-item">
+                  <span className="stat-label">Knowledge Size</span>
+                  <span className="stat-value">{(kbStatus?.total_vectors || 0).toLocaleString()} Vectors</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Loaded Files</span>
+                  <span className="stat-value">{kbStatus?.inventory.length || 0} Documents</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Compute Unit</span>
+                  <span className="stat-value">{kbStatus?.device || 'Detecting...'}</span>
+                </div>
+              </div>
+
+              <div className="kb-list-container">
+                <AnimatePresence mode="wait">
+                  {!selectedFolder ? (
+                    <motion.div 
+                      key="folders"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="kb-folders-view"
+                    >
+                      <div className="kb-folder-grid">
+                        {folders.map((folder) => (
+                          <button 
+                            key={folder.id} 
+                            className="kb-folder-card"
+                            onClick={() => setSelectedFolder(folder.id)}
+                          >
+                            <div className="folder-icon-wrapper" style={{ color: folder.color }}>
+                              <folder.icon size={28} />
+                            </div>
+                            <div className="folder-info">
+                              <span className="folder-name">{folder.name}</span>
+                              <span className="folder-count">{getFileCount(folder.id)} files</span>
+                            </div>
+                            <ChevronRight size={18} className="folder-arrow" />
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="files"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="kb-files-view"
+                    >
+                      <div className="kb-breadcrumb">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                          <button className="back-btn" onClick={() => setSelectedFolder(null)} style={{ flexShrink: 0 }}>
+                            <ChevronLeft size={16} />
+                            <span>All Folders</span>
+                          </button>
+                          <span className="breadcrumb-sep" style={{ flexShrink: 0 }}>/</span>
+                          <span className="breadcrumb-current" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {folders.find(f => f.id === selectedFolder)?.name}
+                          </span>
+                        </div>
+                        
+                        <div className="kb-search-container" style={{ flexShrink: 0 }}>
+                          <Search size={14} className="search-icon" />
+                          <input 
+                            type="text" 
+                            placeholder="Search files..." 
+                            value={kbSearch}
+                            onChange={(e) => setKBSearch(e.target.value)}
+                            className="kb-search-input"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="kb-list-header">
+                        <span>Name</span>
+                        <span style={{ textAlign: 'center' }}>Status</span>
+                        <span style={{ textAlign: 'center' }}>Weight</span>
+                        <span style={{ textAlign: 'right' }}>Action</span>
+                      </div>
+                      <div className="kb-scroll-area">
+                        {kbStatus?.inventory
+                          .filter(item => item.type === selectedFolder)
+                          .filter(item => item.name.toLowerCase().includes(kbSearch.toLowerCase()))
+                          .map((item) => (
+                            <div key={item.id} className="kb-row">
+                              <div className="kb-file-info">
+                                {item.type === 'pdf' && <FileText size={18} color="#ef4444" />}
+                                {item.type === 'csv' && <BarChart size={18} color="#10b981" />}
+                                {item.type === 'audio' && <Headphones size={18} color="#8b5cf6" />}
+                                {item.type === 'txt' && <MessageSquare size={18} color="#f59e0b" />}
+                                <div className="kb-file-details">
+                                  <div className="kb-file-name">{item.name}</div>
+                                  <div className="kb-file-meta">{item.size}</div>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <span className={`kb-status-tag ${item.status}`}>
+                                  {item.status}
+                                </span>
+                              </div>
+                              <div className="kb-vectors">
+                                {item.vectors > 0 ? `${item.vectors} v` : '--'}
+                              </div>
+                              <div className="kb-actions">
+                                <button 
+                                  className="kb-delete-btn" 
+                                  title="Purge file"
+                                  onClick={() => handleDeleteFile(item.full_path)}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        {kbStatus && kbStatus.inventory.filter(f => f.type === selectedFolder).length === 0 && (
+                          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
+                            No files found in this category.
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
