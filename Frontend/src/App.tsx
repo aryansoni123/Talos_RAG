@@ -31,6 +31,13 @@ interface ChatHistory {
   date: Date;
 }
 
+interface UploadTask {
+  id: string;
+  name: string;
+  status: 'uploading' | 'indexing' | 'completed' | 'error';
+  progress: number;
+}
+
 const CodeBlock = ({ node, inline, className, children, theme, ...props }: any) => {
   const match = /language-(\w+)/.exec(className || '');
   const [copied, setCopied] = useState(false);
@@ -100,6 +107,9 @@ export default function App() {
   const [kbStatus, setKBStatus] = useState<SystemStatus | null>(null);
   const [isKBLoading, setIsKBLoading] = useState(false);
   const [kbSearch, setKBSearch] = useState('');
+  const [uploadQueue, setUploadQueue] = useState<UploadTask[]>([]);
+  const [isUploadPanelOpen, setIsUploadStatusVisible] = useState(false);
+  const [isUploadPanelMinimized, setIsUploadStatusMinimized] = useState(false);
 
   const fetchKBStatus = async () => {
     console.log("Fetching Knowledge Base status...");
@@ -253,51 +263,68 @@ export default function App() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     await uploadSingleFile(file);
   };
 
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     const filesArray = Array.from(files);
-    setMessages(prev => [...prev, {
-      id: `bulk-upload-start-${Date.now()}`,
-      role: 'bot',
-      content: `Starting bulk upload of ${filesArray.length} files...`,
-      timestamp: new Date(),
-    }]);
-
     for (const file of filesArray) {
-      await uploadSingleFile(file);
+      uploadSingleFile(file); // Run in parallel
     }
   };
 
   const uploadSingleFile = async (file: File) => {
-    const uploadStartedMsg: Message = {
-      id: `upload-${Date.now()}`,
-      role: 'bot',
-      content: `Uploading and indexing "${file.name}"...`,
-      timestamp: new Date(),
+    const taskId = Math.random().toString(36).substring(7);
+    const newTask: UploadTask = {
+      id: taskId,
+      name: file.name,
+      status: 'uploading',
+      progress: 0
     };
-    setMessages(prev => [...prev, uploadStartedMsg]);
+
+    setUploadQueue(prev => [newTask, ...prev]);
+    setIsUploadStatusVisible(true);
+    setIsUploadStatusMinimized(false);
 
     try {
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadQueue(prev => prev.map(t => 
+          t.id === taskId ? { ...t, progress: Math.min(t.progress + 20, 90) } : t
+        ));
+      }, 200);
+
       await chatService.uploadFile(file);
-      setMessages(prev => [...prev, {
-        id: `upload-success-${Date.now()}`,
-        role: 'bot',
-        content: `Successfully indexed "${file.name}". You can now ask questions about its content.`,
-        timestamp: new Date(),
-      }]);
+      clearInterval(interval);
+
+      // Switch to indexing phase
+      setUploadQueue(prev => prev.map(t => 
+        t.id === taskId ? { ...t, status: 'indexing', progress: 100 } : t
+      ));
+
+      // Fetch status to confirm it's being indexed
+      await fetchKBStatus();
+
+      // Mark as completed after a brief moment to show 'Indexing'
+      setTimeout(() => {
+        setUploadQueue(prev => prev.map(t => 
+          t.id === taskId ? { ...t, status: 'completed' } : t
+        ));
+      }, 2000);
+
     } catch (error) {
-      setMessages(prev => [...prev, {
-        id: `upload-error-${Date.now()}`,
-        role: 'bot',
-        content: `Failed to upload "${file.name}". Please try again.`,
-        timestamp: new Date(),
-      }]);
+      setUploadQueue(prev => prev.map(t => 
+        t.id === taskId ? { ...t, status: 'error' } : t
+      ));
+    }
+  };
+
+  const clearCompletedUploads = () => {
+    setUploadQueue(prev => prev.filter(t => t.status !== 'completed' && t.status !== 'error'));
+    if (uploadQueue.filter(t => t.status !== 'completed' && t.status !== 'error').length === 0) {
+      setIsUploadStatusVisible(false);
     }
   };
 
@@ -393,7 +420,7 @@ export default function App() {
                     ref={bulkFileInputRef} 
                     style={{ display: 'none' }} 
                     multiple 
-                    accept=".pdf,.csv,.wav,.mp3"
+                    accept=".pdf,.csv,.wav,.mp3,.txt"
                     onChange={handleBulkUpload}
                   />
                   <button className="icon-btn" onClick={() => setIsKBOpen(false)}>
@@ -679,6 +706,55 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Upload Status Panel - Drive Style */}
+      <AnimatePresence>
+        {isUploadPanelOpen && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className={`upload-panel ${isUploadPanelMinimized ? 'minimized' : ''}`}
+          >
+            <div className="upload-header" onClick={() => setIsUploadStatusMinimized(!isUploadPanelMinimized)}>
+              <span className="upload-title">
+                {uploadQueue.filter(t => t.status !== 'completed').length > 0 
+                  ? `Processing ${uploadQueue.filter(t => t.status !== 'completed').length} files...`
+                  : 'Uploads complete'}
+              </span>
+              <div className="upload-controls">
+                <button onClick={(e) => { e.stopPropagation(); setIsUploadStatusMinimized(!isUploadPanelMinimized); }}>
+                  {isUploadPanelMinimized ? <ChevronRight size={18} style={{ transform: 'rotate(-90deg)' }} /> : <ChevronRight size={18} style={{ transform: 'rotate(90deg)' }} />}
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setIsUploadStatusVisible(false); }}>
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            
+            {!isUploadPanelMinimized && (
+              <div className="upload-body">
+                {uploadQueue.map(task => (
+                  <div key={task.id} className="upload-item">
+                    <div className="upload-item-info">
+                      {task.status === 'uploading' || task.status === 'indexing' 
+                        ? <Loader2 size={16} className="animate-spin text-accent" />
+                        : task.status === 'completed' 
+                          ? <Check size={16} className="text-[#10b981]" />
+                          : <X size={16} className="text-[#ef4444]" />
+                      }
+                      <span className="upload-file-name">{task.name}</span>
+                    </div>
+                    <div className="upload-item-status">
+                      {task.status === 'uploading' ? `${task.progress}%` : task.status}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

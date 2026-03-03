@@ -11,11 +11,9 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}) # Explicitly allow all origins for local dev
 
 # Use robust absolute pathing
-# This script is at D:\Coding\Talos_RAG\backend\api.py
-# We want D:\Coding\Talos_RAG\Data
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) # D:\Coding\Talos_RAG\backend
-ROOT_DIR = os.path.dirname(SCRIPT_DIR) # D:\Coding\Talos_RAG
-DATA_DIR = os.path.join(ROOT_DIR, "Data") # D:\Coding\Talos_RAG\Data
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) 
+ROOT_DIR = os.path.dirname(SCRIPT_DIR) 
+DATA_DIR = os.path.join(ROOT_DIR, "Data") 
 
 def startup_logic():
     """Initializes the database and starts the file watcher."""
@@ -39,55 +37,34 @@ def startup_logic():
 def handle_chat():
     data = request.json
     user_query = data.get("query")
-    
     if not user_query:
         return jsonify({"error": "No query provided"}), 400
-    
     try:
         result = engine.chatbot(user_query)
-        # If it's a dictionary (successful RAG or caught error), structure it for the frontend
-        if isinstance(result, dict):
-            return jsonify({
-                "response": result.get("answer"),
-                "sources": result.get("sources", [])
-            })
-        else:
-            # Fallback if result is just a string
-            return jsonify({
-                "response": result,
-                "sources": []
-            })
+        return jsonify({"response": result.get("answer"), "sources": result.get("sources", [])})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/status', methods=['GET'])
 def get_status():
-    """
-    Returns the full state of the Knowledge Base, including a reconciled list of 
-    physical files and their indexing status.
-    """
     indexed_files = database.processed_files
     disk_files = []
     if os.path.exists(DATA_DIR):
         disk_files = [f for f in os.listdir(DATA_DIR) if os.path.isfile(os.path.join(DATA_DIR, f))]
-
+    
     print(f"Status Request: Found {len(disk_files)} files on disk.")
-
     inventory = []
     for filename in disk_files:
         full_path = os.path.join(DATA_DIR, filename)
         is_indexed = full_path in indexed_files
-        
-        # Get extension without dot
         ext = os.path.splitext(filename)[1].lower().replace('.', '')
-        # Map to our 4 categories: pdf, csv, audio, txt
         category = 'txt'
         if ext == 'pdf': category = 'pdf'
         elif ext == 'csv': category = 'csv'
         elif ext in ['mp3', 'wav', 'm4a']: category = 'audio'
 
         inventory.append({
-            "id": filename, # Using filename as simple ID
+            "id": filename,
             "name": filename,
             "full_path": full_path,
             "type": category,
@@ -105,40 +82,40 @@ def get_status():
 
 @app.route('/delete', methods=['DELETE'])
 def delete_file():
-    """Surgically removes a file from disk and its vectors from FAISS."""
     data = request.json
     file_path = data.get("file_path")
-    
     if not file_path:
         return jsonify({"error": "No file path provided"}), 400
-    
     try:
-        # 1. Remove from Vector DB
         database.remove_file_from_db(file_path)
-        
-        # 2. Remove from Physical Disk
         if os.path.exists(file_path):
             os.remove(file_path)
-            
         return jsonify({"message": f"File {os.path.basename(file_path)} purged successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    # Handle both single 'file' and multiple 'files' keys
+    uploaded_files = []
+    if 'file' in request.files:
+        uploaded_files.append(request.files['file'])
+    if 'files' in request.files:
+        uploaded_files.extend(request.files.getlist('files'))
     
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+    if not uploaded_files:
+        return jsonify({"error": "No files provided"}), 400
     
-    file_path = os.path.join(DATA_DIR, file.filename)
-    file.save(file_path)
+    count = 0
+    for file in uploaded_files:
+        if file.filename == '':
+            continue
+        file_path = os.path.join(DATA_DIR, file.filename)
+        file.save(file_path)
+        count += 1
     
-    return jsonify({"message": f"File {file.filename} uploaded and being indexed."}), 201
+    return jsonify({"message": f"Successfully uploaded {count} files for indexing."}), 201
 
 if __name__ == '__main__':
     startup_logic()
-    # Run Flask App on port 8000 to match frontend's api.ts
     app.run(host='0.0.0.0', port=8000, debug=False)

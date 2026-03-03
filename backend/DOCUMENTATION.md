@@ -76,7 +76,18 @@ InTurn 1, the AI might use 3,000 tokens of PDF text.
 
 ---
 
-## 5. API Gateway (`api.py`)
+## 5. Intelligent Bulk Ingestion
+
+Talos features a high-performance pipeline for bulk document uploads.
+
+### **A. Multi-File Parallelism**
+- The `/upload` endpoint can receive multiple files simultaneously via `multipart/form-data`.
+- Each file is validated against the **SUPPORTED_EXTENSIONS** list (`.pdf`, `.csv`, `.mp3`, `.wav`, `.txt`, `.m4a`).
+- Files are saved directly to the permanent `Data` directory, triggering the real-time `watchdog` service for instant vectorization.
+
+---
+
+## 6. API Gateway (`api.py`)
 
 - **Framework**: Flask with `flask-cors`.
 - **Port**: 8000 (standardized for the Talos Frontend).
