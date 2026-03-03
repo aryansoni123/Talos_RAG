@@ -140,13 +140,23 @@ def remove_file_from_db(file_path):
         
         save_db()
 
-def init_dbs(data_dir="./data"):
+# Use robust absolute pathing for Data directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) # D:\Coding\Talos_RAG\backend
+ROOT_DIR = os.path.dirname(SCRIPT_DIR) # D:\Coding\Talos_RAG
+DEFAULT_DATA_DIR = os.path.join(ROOT_DIR, "Data") # D:\Coding\Talos_RAG\Data
+
+def init_dbs(data_dir=None):
     """Scans the data directory and initializes everything."""
+    if data_dir is None:
+        data_dir = DEFAULT_DATA_DIR
+        
     load_db()
     
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
+        print(f"Created data directory: {data_dir}")
         
+    print(f"Initializing Knowledge Base from: {data_dir}")
     for root, _, files in os.walk(data_dir):
         for file in files:
             file_path = os.path.join(root, file)
