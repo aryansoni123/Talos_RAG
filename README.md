@@ -1,113 +1,109 @@
-# 🤖 Talos - Multimodal AI Assistant
+# Talos RAG: Enterprise Multi-Modal Intelligence
 
-Talos is a powerful multimodal AI assistant capable of processing and understanding PDF documents, CSV data, and audio files (WAV/MP3). It monitors changes in the data directory in real-time and updates embeddings using FAISS for efficient semantic search. It also utilizes reranking via a cross-encoder model for enhanced retrieval quality and answers queries using Google's Gemini LLM.
+Talos is a high-performance, production-grade Retrieval-Augmented Generation (RAG) system designed to provide deep intelligence across diverse enterprise data formats. It seamlessly integrates text, structured data, and audio into a unified reasoning engine with a high-end, responsive user interface.
 
----
+## 🚀 Key Features
 
-## 🚀 Features
-
-- ✅ PDF, CSV, and Audio file processing
-- 🔄 Real-time file monitoring and dynamic FAISS index updating
-- 🎙️ Whisper + Wav2Vec2-based audio transcription and embedding
-- 📊 Semantic search via FAISS vector store
-- 🧠 Cross-encoder reranking using Sentence Transformers
-- 💬 Response generation via Gemini 2.0 Flash
-
----
-
-## 📁 Directory Structure
-
-```
-Talos/
-├── Data/
-│   ├── sample.pdf
-│   ├── data.csv
-│   └── audio.wav
-├── bot.py
-├── requirements.txt
-└── README.md
-```
+- **Multi-Modal Ingestion**: Native support for **PDFs**, **CSVs**, **Plain Text**, and **Audio** (MP3/WAV).
+- **Hybrid RAG Pipeline**:
+    - **Vector Retrieval**: FAISS-powered similarity search using `all-MiniLM-L6-v2` embeddings.
+    - **High-Speed Reranking**: CPU-optimized reranking via **FlashRank** (TinyBERT) for maximum precision.
+    - **Reasoning**: Powered by **Gemini 2.0 Flash** for state-of-the-art response generation.
+- **Acoustic Intelligence**: Dual-layer audio processing using **OpenAI Whisper** for transcription and **Wav2Vec2** for semantic acoustic feature extraction.
+- **Real-Time Indexing**: Automated file-watcher (`watchdog`) that monitors the `./data` directory and updates the knowledge base instantly.
+- **High-End UI/UX**:
+    - **Rich Text Support**: Full Markdown rendering with syntax-highlighted code blocks and one-click copy.
+    - **Inertial Scrolling**: Ultra-smooth scrolling experience powered by **Lenis**.
+    - **Responsive Design**: Modern, glassmorphism-inspired aesthetic with Dark/Light mode synchronization.
+    - **Source Citations**: Interactive citations showing metadata, confidence scores, and content snippets.
 
 ---
 
-## 🔧 Requirements
+## 🏗️ Architecture
 
-- Python 3.8+
-- PyTorch (with CUDA support for GPU acceleration)
-- Transformers
-- Langchain
-- HuggingFace Embeddings
-- FAISS
-- Whisper
-- Librosa
-- Sentence-Transformers
-- Watchdog
-- Requests, BeautifulSoup4
+### **Backend (Python)**
+The backend is a modular Flask application built for speed and reliability.
+- **`api.py`**: The RESTful gateway (Port 8000) managing chat, status, and uploads.
+- **`engine.py`**: The RAG orchestrator. It handles retrieval, FlashRank reranking, and LLM communication.
+- **`database.py`**: Manages the FAISS vector stores and metadata persistence.
+- **`processors.py`**: Specialized loaders for different file types (PDF, CSV, Audio).
+- **`watcher.py`**: Background service for real-time file system monitoring.
+
+### **Frontend (React + TypeScript)**
+A modern SPA designed for enterprise-level performance.
+- **Vite**: Ultra-fast build tool and development server.
+- **Framer Motion**: High-fidelity animations and transitions.
+- **Tailwind CSS**: Utility-first styling with a custom "Talos Bronze" design system.
+- **Lucide React**: Clean, consistent iconography.
 
 ---
 
-## 🛠️ Setup
+## 🛠️ Tech Stack
 
-1. Clone the repository:
+| Category | Technology |
+| :--- | :--- |
+| **LLM** | Google Gemini 2.0 Flash |
+| **Embeddings** | HuggingFace (all-MiniLM-L6-v2) |
+| **Vector DB** | FAISS (Facebook AI Similarity Search) |
+| **Reranker** | FlashRank (ms-marco-TinyBERT-L-2-v2) |
+| **Audio** | OpenAI Whisper, Facebook Wav2Vec2 |
+| **Frontend** | React, TypeScript, Framer Motion, Lenis |
+| **Backend** | Flask, LangChain, PyMuPDF, Trafilatura |
 
-```bash
-https://github.com/aryansoni123/Talos_RAG.git
-```
+---
 
+## 🚦 Getting Started
+
+### **1. Prerequisites**
+- Python 3.10+
+- Node.js 18+
+- A Google Gemini API Key
+
+### **2. Backend Setup**
+1. Navigate to the `backend` folder:
+   ```bash
+   cd backend
+   ```
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Configure environment:
+   Create a `.env` file in the `backend` directory:
+   ```env
+   GOOGLE_API_KEY=your_gemini_api_key_here
+   ```
+5. Launch the API:
+   ```bash
+   python api.py
+   ```
+
+### **3. Frontend Setup**
+1. Navigate to the `Frontend` folder:
+   ```bash
+   cd Frontend
+   ```
 2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Place your PDFs, CSVs, and audio files in the `Data/` directory.
-4. Run the bot:
-
-```bash
-python bot.py
-```
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
 ---
 
-## 💬 Usage
-
-Simply type a natural language query after starting the script. Type `exit` to terminate the session.
-
----
-
-## 🔐 API Keys
-
-Make sure to set your API key for Gemini:
-
-```python
-API_key = "your_google_api_key"
-```
+## 📂 Data Management
+- **Manual Upload**: Use the "Paperclip" or "Bulk Upload" buttons in the UI.
+- **Direct Drop**: Simply drop supported files into the `backend/data` directory. The system will automatically index them within seconds.
 
 ---
 
-## 📌 Notes
-
-- For real-time audio embedding and query, Whisper's transcription is used alongside Wav2Vec2 embeddings.
-- FAISS is used to maintain low-latency similarity search.
-- Gemini Flash is fast and cost-effective for rapid responses.
-
----
-
-## ✨ Credits
-
-- [Whisper](https://github.com/openai/whisper)
-- [Wav2Vec2](https://huggingface.co/facebook/wav2vec2-base-960h)
-- [LangChain](https://www.langchain.com/)
-- [FAISS](https://github.com/facebookresearch/faiss)
-- [Gemini Flash](https://ai.google.dev/)
-
----
-
-## 📬 Contact
-
-For support or contributions, reach out at: `your.email@example.com`
-
----
-
-**Happy building with Talos!** 🚀
-
+## 📜 License
+Internal Enterprise Use. (C) 2024 Talos Intelligence Systems.
