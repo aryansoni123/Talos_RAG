@@ -5,50 +5,39 @@ Talos is a high-performance, production-grade Retrieval-Augmented Generation (RA
 ## 🚀 Key Features
 
 - **Multi-Modal Ingestion**: Native support for **PDFs**, **CSVs**, **Plain Text**, and **Audio** (MP3/WAV).
-- **Hybrid RAG Pipeline**:
-    - **Vector Retrieval**: FAISS-powered similarity search using `all-MiniLM-L6-v2` embeddings.
-    - **High-Speed Reranking**: CPU-optimized reranking via **FlashRank** (TinyBERT) for maximum precision.
-    - **Reasoning**: Powered by **Gemini 2.0 Flash** for state-of-the-art response generation.
-- **Acoustic Intelligence**: Dual-layer audio processing using **OpenAI Whisper** for transcription and **Wav2Vec2** for semantic acoustic feature extraction.
-- **Real-Time Indexing**: Automated file-watcher (`watchdog`) that monitors the `./data` directory and updates the knowledge base instantly.
+- **Conversational Intelligence (STM)**: 
+    - Implements a **Source-Stripped Sliding Window** memory.
+    - Automates "Sticky Note" summarization to keep context alive while minimizing token usage.
+- **Advanced Knowledge Base**:
+    - **Folder-Based Navigation**: Data is categorized into smart folders (PDF, CSV, Audio, Text).
+    - **Real-Time Reconciliation**: Live sync between your physical root `Data` folder and the AI's memory.
+    - **Global Search**: Instant file filtering within the management UI.
+    - **Surgical Deletion**: Remove specific files and their mathematical vectors instantly.
 - **High-End UI/UX**:
-    - **Rich Text Support**: Full Markdown rendering with syntax-highlighted code blocks and one-click copy.
-    - **Inertial Scrolling**: Ultra-smooth scrolling experience powered by **Lenis**.
-    - **Responsive Design**: Modern, glassmorphism-inspired aesthetic with Dark/Light mode synchronization.
-    - **Source Citations**: Interactive citations showing metadata, confidence scores, and content snippets.
+    - **Drive-Style Upload Panel**: Floating bottom-right dashboard to monitor background indexing progress.
+    - **Rich Text Support**: Full Markdown rendering with syntax-highlighted code blocks.
+    - **Compact Form Factor**: Redesigned, professional modals with high-fidelity glassmorphism.
+- **Acoustic Intelligence**: Dual-layer audio processing using **OpenAI Whisper** for transcription and **Wav2Vec2** for semantic acoustic feature extraction.
 
 ---
 
 ## 🏗️ Architecture
 
+### **Reasoning Stack**
+1.  **Retrieval**: FAISS-powered similarity search using `all-MiniLM-L6-v2` embeddings.
+2.  **Reranking**: CPU-optimized reranking via **FlashRank** (TinyBERT) for maximum precision.
+3.  **Generation**: Powered by **Gemini 2.0 Flash** for state-of-the-art response generation.
+
 ### **Backend (Python)**
-The backend is a modular Flask application built for speed and reliability.
-- **`api.py`**: The RESTful gateway (Port 8000) managing chat, status, and uploads.
-- **`engine.py`**: The RAG orchestrator. It handles retrieval, FlashRank reranking, and LLM communication.
-- **`database.py`**: Manages the FAISS vector stores and metadata persistence.
-- **`processors.py`**: Specialized loaders for different file types (PDF, CSV, Audio).
-- **`watcher.py`**: Background service for real-time file system monitoring.
+- **`api.py`**: The RESTful gateway (Port 8000) managing chat, status, and multi-file uploads.
+- **`engine.py`**: Orchestrates the RAG pipeline and manages Short-Term Memory state.
+- **`database.py`**: Manages FAISS vector stores with incremental SHA-256 hashing.
+- **`watcher.py`**: Background service for real-time root `Data` directory monitoring.
 
 ### **Frontend (React + TypeScript)**
-A modern SPA designed for enterprise-level performance.
 - **Vite**: Ultra-fast build tool and development server.
 - **Framer Motion**: High-fidelity animations and transitions.
-- **Tailwind CSS**: Utility-first styling with a custom "Talos Bronze" design system.
-- **Lucide React**: Clean, consistent iconography.
-
----
-
-## 🛠️ Tech Stack
-
-| Category | Technology |
-| :--- | :--- |
-| **LLM** | Google Gemini 2.0 Flash |
-| **Embeddings** | HuggingFace (all-MiniLM-L6-v2) |
-| **Vector DB** | FAISS (Facebook AI Similarity Search) |
-| **Reranker** | FlashRank (ms-marco-TinyBERT-L-2-v2) |
-| **Audio** | OpenAI Whisper, Facebook Wav2Vec2 |
-| **Frontend** | React, TypeScript, Framer Motion, Lenis |
-| **Backend** | Flask, LangChain, PyMuPDF, Trafilatura |
+- **Lenis**: Smooth inertial scrolling engine.
 
 ---
 
@@ -60,48 +49,25 @@ A modern SPA designed for enterprise-level performance.
 - A Google Gemini API Key
 
 ### **2. Backend Setup**
-1. Navigate to the `backend` folder:
-   ```bash
-   cd backend
-   ```
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
+1. Navigate to the `backend` folder: `cd backend`
+2. Activate your virtual environment and install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-4. Configure environment:
-   Create a `.env` file in the `backend` directory:
-   ```env
-   GOOGLE_API_KEY=your_gemini_api_key_here
-   ```
-5. Launch the API:
-   ```bash
-   python api.py
-   ```
+3. Set your `GOOGLE_API_KEY` in the `backend/.env` file.
+4. Launch the API: `python api.py`
 
 ### **3. Frontend Setup**
-1. Navigate to the `Frontend` folder:
-   ```bash
-   cd Frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+1. Navigate to the `Frontend` folder: `cd Frontend`
+2. Install dependencies: `npm install`
+3. Start the UI: `npm run dev`
 
 ---
 
-## 📂 Data Management
-- **Manual Upload**: Use the "Paperclip" or "Bulk Upload" buttons in the UI.
-- **Direct Drop**: Simply drop supported files into the `backend/data` directory. The system will automatically index them within seconds.
+## 📂 Knowledge Management
+- **The Data Root**: The system is connected to the **`D:\Coding\Talos_RAG\Data`** directory.
+- **Auto-Sync**: Any file dropped into this folder is automatically detected and indexed by the `watcher.py` service.
+- **Management**: Use the **Knowledge Base** button in the UI to search, filter, and purge files from the system.
 
 ---
 
